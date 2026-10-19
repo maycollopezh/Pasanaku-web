@@ -1,3 +1,10 @@
 .DS_Store
 node_modules/
 .netlify/
+.env
+.env.*
+!.env.example
+pasanaku-respaldo-*.json
+pasanaku-vista-previa.jpg
+supabase-proyecto-preparado.png
+dist/

@@ -1,7 +1,11 @@
 {
-  "name": "la-ruleta",
+  "name": "pasanaku-digital",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.1.0",
   "type": "module",
-  "scripts": { "test": "node --test", "dev": "python3 -m http.server 5173" }
+  "scripts": {
+    "test": "node --test",
+    "dev": "python3 -m http.server 5173 --bind 127.0.0.1",
+    "build": "node scripts/build.mjs"
+  }
 }

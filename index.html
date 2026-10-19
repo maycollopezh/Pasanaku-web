@@ -1,44 +1,10 @@
 <!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f7f6f2">
-  <meta name="description" content="Agrega nombres, gira la ruleta y guarda el orden de tu sorteo.">
-  <title>La ruleta · Un giro, un nombre</title>
-  <link rel="stylesheet" href="styles.css">
-  <script type="module" src="app.js"></script>
-</head>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#147d68"><meta name="description" content="Organiza tu pasanaku: sorteo transparente, turnos, aportes y multas en un solo lugar."><title>Pasanaku · Juntos, turno a turno</title><link rel="stylesheet" href="styles.css"><script type="module" src="app.js"></script></head>
 <body>
-  <header class="header"><a class="brand" href="./"><span class="brand-icon">✳</span> la ruleta<span class="brand-dot">.</span></a><span class="header-note">Un giro, un nombre.</span></header>
-  <main>
-    <div class="intro"><div class="eyebrow">QUE LA RUEDA DECIDA</div><h1>Todos tienen su turno.</h1><p>Agrega los nombres, gira y descubre quién sigue.</p></div>
-    <div class="workspace">
-      <section class="card names-card" aria-labelledby="names-title">
-        <div class="card-heading"><h2 id="names-title">Los participantes</h2><span class="count" id="input-count">0</span></div>
-        <label for="names">Un nombre por línea</label>
-        <textarea id="names" spellcheck="false" placeholder="Ingresa los nombres aquí…"></textarea>
-        <button class="button secondary" id="apply">Guardar nombres <span aria-hidden="true">↗</span></button>
-        <p class="hint" id="names-hint">También puedes separar los nombres con comas.</p>
-        <div class="mini-tip"><span aria-hidden="true">✦</span><p>Cuando aceptas un resultado, ese nombre sale de la rueda.</p></div>
-      </section>
-      <section class="wheel-section" aria-label="Ruleta de participantes">
-        <div class="wheel-stage"><div class="pointer" aria-hidden="true"></div><canvas id="wheel" width="1000" height="1000" aria-label="Ruleta de colores"></canvas><div class="wheel-center" aria-hidden="true">✳</div></div>
-        <div class="remaining"><span class="status-dot"></span><span id="remaining">Agrega nombres para comenzar</span></div>
-        <button class="button primary" id="spin" disabled><span aria-hidden="true">↻</span> Girar la ruleta</button>
-        <p class="wheel-caption" id="wheel-caption">Un clic. Un nuevo turno.</p>
-      </section>
-      <section class="card history-card" aria-labelledby="history-title">
-        <div class="card-heading"><h2 id="history-title">El orden de salida</h2><span class="count" id="history-count">0</span></div>
-        <div class="history-content"><div class="empty-history" id="empty-history"><span class="empty-icon" aria-hidden="true">≋</span><p>Todo empieza con un giro.</p><span>Los nombres aparecerán aquí<br>en el orden en que salgan.</span></div><ol id="history"></ol></div>
-        <button class="button secondary" id="download" disabled>Descargar lista <span aria-hidden="true">↓</span></button>
-      </section>
-    </div>
-    <div class="bottom-bar"><p><span aria-hidden="true">◈</span> Tu lista y tus resultados se guardan en este navegador.</p><button class="text-button" id="restart">↺ Empezar de nuevo</button></div>
-    <p id="message" role="status" aria-live="polite"></p>
-  </main>
-  <footer>Hecha para compartir el turno.<span>Gira. Descubre. Repite.</span></footer>
-  <dialog id="result-dialog" aria-labelledby="result-title"><div class="result-symbol" aria-hidden="true">✦</div><p class="eyebrow">ES EL TURNO DE</p><h2 id="result-title"></h2><p class="result-help">Al aceptar, este nombre se guardará en el historial y saldrá de la ruleta.</p><button class="button primary" id="accept">Aceptar y continuar <span aria-hidden="true">→</span></button></dialog>
-  <dialog id="restart-dialog" aria-labelledby="restart-title"><h2 id="restart-title">¿Empezamos de nuevo?</h2><p class="result-help">Se borrará el historial y volverán todos los nombres de la lista. Puedes descargar los resultados antes de reiniciar.</p><div class="dialog-actions"><button class="button secondary" id="cancel-restart">Volver</button><button class="button primary" id="confirm-restart">Reiniciar</button></div></dialog>
-</body>
-</html>
+<aside class="sidebar"><a class="brand" href="./"><span class="brand-mark">✳</span> pasanaku<span class="brand-dot">.</span></a><div class="workspace-tag">TU ESPACIO DE ADMINISTRACIÓN</div><nav id="navigation" aria-label="Navegación principal"></nav><div class="sidebar-bottom"><div class="trust-icon">♡</div><strong>La confianza nos une.</strong><p>Las cuentas claras<br>nos mantienen juntos.</p><button class="nav-link" data-view="settings"><span>⚙</span> Respaldo y conexión</button><div class="profile"><span class="avatar">A</span><div><strong>Administrador</strong><small id="connection-label">Guardado en este navegador</small></div></div></div></aside>
+<div class="app-shell"><header class="topbar"><span id="breadcrumb">Mi pasanaku / Resumen</span><span class="today" id="today"></span></header><div id="sync-banner" class="sync-banner" role="status" aria-live="polite"><span class="sync-dot" aria-hidden="true"></span><span id="sync-label">Comprobando guardado…</span><button id="sync-retry" class="link-button" data-action="sync-retry" hidden>Reintentar</button></div><main id="main" tabindex="-1"></main><footer><span>Hecho para llevar las cuentas claras.</span><span>Bolivia · BOB · Hora de La Paz</span></footer></div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<dialog id="modal"><button class="close-modal" aria-label="Cerrar ventana" id="close-modal">×</button><div id="modal-content"></div></dialog>
+<input id="import-file" type="file" accept="application/json" hidden>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none"><symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol><symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m3 10v-3a6 6 0 0 0-2-4"/></symbol><symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 11h18m-13 5h2m4 0h2"/></symbol><symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 8V5l14-3v3m4 7h-6v5h6m-3-2.5h.1"/></symbol><symbol id="i-wheel" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 3v7m0 4v7M3 12h7m4 0h7M6 6l5 5m2 2 5 5m0-12-5 5m-2 2-5 5"/></symbol><symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H5v20h14V7zm0 0v6h5M8 12h8m-8 4h8"/></symbol><symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol><symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol></svg>
+</body></html>
