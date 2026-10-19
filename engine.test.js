@@ -38,3 +38,30 @@ test('el beneficiario sigue debiendo y las multas no completan un desembolso',()
  g.payments.push({period:'p',person:'a',principal:20000,fine:0,at:'2026-10-19T17:00:00-04:00'});
  assert.equal(validatePayout(g,period),40000);assert.throws(()=>validatePayout(g,{...period,payout:{amount:40000}}));
 });
+
+test('lista acordada reconoce numeración, acentos, mayúsculas y espacios', async()=>{
+ const {resolveManualOrder,applyManualOrder}=await import('./engine.js');
+ const g={people:[{id:'a',name:'Ana López'},{id:'b',name:'José Luis'},{id:'c',name:'Maycol'}],periods:schedule('2026-10-19','weekly',3).map(date=>({date,person:null,payout:null})),order:[],pending:null,payments:[{principal:20000}]};
+ const dates=g.periods.map(p=>p.date),payments=structuredClone(g.payments);
+ const order=resolveManualOrder(g,'1. MAYCOL\n2) jose   luis\n3. ana lopez');
+ assert.deepEqual(order,['c','b','a']);assert.deepEqual(g.order,[]);
+ applyManualOrder(g,order);order.reverse();
+ assert.deepEqual(g.order,['c','b','a']);assert.deepEqual(g.periods.map(p=>p.person),g.order);
+ assert.deepEqual(g.periods.map(p=>p.date),dates);assert.deepEqual(g.payments,payments);assert.equal(g.assignment,'manual');
+});
+test('lista acordada rechaza ausentes, desconocidos y duplicados sin modificar el grupo',async()=>{
+ const {resolveManualOrder,applyManualOrder}=await import('./engine.js');
+ const g={people:[{id:'a',name:'Ana'},{id:'b',name:'Luis'}],periods:[{person:null},{person:null}],order:[],pending:null};
+ const before=structuredClone(g);
+ for(const text of ['Ana','Ana\nPedro','Ana\nANA','Ana\nLuis\nPedro']) assert.throws(()=>resolveManualOrder(g,text));
+ for(const order of [['a'],['a','a'],['a','x']])assert.throws(()=>applyManualOrder(g,order));
+ assert.deepEqual(g,before);
+});
+test('un orden acordado nunca reemplaza un sorteo, turno o desembolso ya registrado',async()=>{
+ const {applyManualOrder}=await import('./engine.js');
+ const base={people:[{id:'a'},{id:'b'}],periods:[{person:null,payout:null},{person:null,payout:null}],order:[],pending:null};
+ for(const patch of [{order:['a']},{pending:{person:'b'}},{periods:[{person:'a'},{person:null}]},{periods:[{person:null,payout:{amount:40000}},{person:null}]}]){
+  const g={...structuredClone(base),...patch},before=structuredClone(g);
+  assert.throws(()=>applyManualOrder(g,['b','a']));assert.deepEqual(g,before);
+ }
+});

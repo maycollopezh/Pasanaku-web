@@ -9,6 +9,29 @@ export function chooseIndex(names, _count, random) {
   do { globalThis.crypto.getRandomValues(buffer); } while (buffer[0] >= limit);
   return buffer[0] % names.length;
 }
+export const normalizeName = name => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().replace(/\s+/g, ' ').toLowerCase();
+export const parseOrderedNames = text => parseNames(text).map(name => name.replace(/^\d+[.)]\s+/, '').trim());
+export function resolveManualOrder(group, text) {
+  const names = parseOrderedNames(text);
+  if (names.length !== group.people.length) throw Error(`Incluye a las ${group.people.length} personas, una vez cada una.`);
+  const people = new Map(group.people.map(p => [normalizeName(p.name), p.id]));
+  if (people.size !== group.people.length) throw Error('Hay participantes con nombres iguales. Revisa la lista del grupo.');
+  const order = names.map(name => {
+    const id = people.get(normalizeName(name));
+    if (!id) throw Error(`«${name}» no está en el grupo. Usa su nombre tal como lo registraste.`);
+    return id;
+  });
+  if (new Set(order).size !== order.length) throw Error('Hay nombres repetidos. Cada persona debe aparecer una sola vez.');
+  return order;
+}
+export function applyManualOrder(group, order) {
+  if (group.order.length || group.pending || group.periods.some(p => p.person || p.payout)) throw Error('El grupo ya tiene turnos asignados o un sorteo pendiente. No se puede reemplazar su orden.');
+  const people = new Set(group.people.map(p => p.id));
+  if (group.periods.length !== people.size || order.length !== people.size || new Set(order).size !== people.size || order.some(id => !people.has(id))) throw Error('El orden debe incluir a cada participante exactamente una vez.');
+  group.order = [...order];
+  group.periods.forEach((p, i) => { p.person = order[i]; });
+  group.assignment = 'manual';
+}
 export function cents(value) {
   if (!/^\d+(\.\d{1,2})?$/.test(String(value))) throw Error('Usa un monto positivo con hasta dos decimales.');
   const amount = Math.round(Number(value) * 100);
@@ -77,7 +100,7 @@ export function validatePayment(group, period, person, payment, now = Date.now()
   if (!payment.verified) throw Error('Confirma que verificaste la recepción del dinero.');
 }
 export function validatePayout(group, period) {
-  if (!period.person) throw Error('Primero sortea el beneficiario.');
+  if (!period.person) throw Error('Primero asigna el beneficiario.');
   if (period.payout) throw Error('Este turno ya tiene un desembolso registrado.');
   if (periodTotals(group,period).owed) throw Error('Faltan aportes para completar este fondo.');
   return group.amount * group.people.length;
