@@ -6,7 +6,7 @@ const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve
 function setup(t,options={}) {
  const state={remote:{data:data(),version:1},scope:'project|account-a',online:true,writes:[],stored:null,applied:[],...options};
  const cloud={scope:()=>state.scope,read:async()=>structuredClone(state.remote),write:async(payload,expected)=>{assert.equal(expected,state.remote.version);state.writes.push(structuredClone(payload));state.remote={data:structuredClone(payload),version:expected+1};return state.remote.version;}};
- const sync=createAutoSync({initial:options.initial||{data:data(),owner:state.scope,version:1,dirty:false},store:value=>{if(state.failStorage)throw Error('No hay espacio');state.stored=value;},cloud,validate:value=>{assert.ok(Array.isArray(value.groups));},onData:value=>state.applied.push(value),online:()=>state.online,delay:600000,retryDelay:600000,canReplace:()=>state.canReplace!==false});
+ const sync=createAutoSync({upgrade:options.upgrade,initial:options.initial||{data:data(),owner:state.scope,version:1,dirty:false},store:value=>{if(state.failStorage)throw Error('No hay espacio');state.stored=value;},cloud,validate:value=>{assert.ok(Array.isArray(value.groups));},onData:value=>state.applied.push(value),online:()=>state.online,delay:600000,retryDelay:600000,canReplace:()=>state.canReplace!==false});
  t.after(()=>sync.dispose());return {sync,state,cloud};
 }
 test('carga la copia remota en un dispositivo nuevo sin sobrescribirla',async t=>{
@@ -55,4 +55,15 @@ test('si falla el guardado local, no se reconoce ni se envía el cambio',t=>{
 
 test('un conflicto durante el envío mantiene los cambios locales y su versión base',async t=>{
  const {sync,cloud}=setup(t);cloud.write=async()=>{throw Object.assign(Error('Otro dispositivo guardó cambios.'),{code:'conflict'});};sync.commit(data('pendiente'));await sync.reconcile();assert.equal(sync.status().kind,'conflict');assert.equal(sync.snapshot().dirty,true);assert.equal(sync.snapshot().version,1);
+});
+
+test('actualiza datos antiguos después de leer la versión remota y guarda contra esa versión',async t=>{
+ const upgrade=value=>({...value,simple:true});
+ const {sync,state}=setup(t,{upgrade,initial:{data:data(),owner:null,version:null,dirty:false},remote:{data:data('remoto'),version:9}});
+ await sync.reconcile();assert.equal(state.writes.length,1);assert.equal(sync.snapshot().version,10);assert.equal(sync.snapshot().data.simple,true);assert.equal(sync.snapshot().data.groups[0].id,'remoto');
+ await sync.reconcile();assert.equal(state.writes.length,1);
+});
+test('una migración no oculta conflictos de cambios locales con otra versión remota',async t=>{
+ const {sync,state}=setup(t,{upgrade:value=>({...value,simple:true}),initial:{data:data('local'),owner:'project|account-a',version:1,dirty:true},remote:{data:data('remoto'),version:3}});
+ await sync.reconcile();assert.equal(sync.status().kind,'conflict');assert.equal(state.writes.length,0);assert.equal(sync.snapshot().data.groups[0].id,'local');
 });

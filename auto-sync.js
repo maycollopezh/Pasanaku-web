@@ -6,7 +6,7 @@ function canonical(value) {
   if (value && typeof value === 'object') return '{' + Object.keys(value).sort().map(k => JSON.stringify(k) + ':' + canonical(value[k])).join(',') + '}';
   return JSON.stringify(value);
 }
-export function createAutoSync({initial, store, cloud, validate, onData=()=>{}, onState=()=>{}, canReplace=()=>true, online=()=>true, delay=600, retryDelay=5000}) {
+export function createAutoSync({initial, store, cloud, validate, onData=()=>{}, onState=()=>{}, canReplace=()=>true, online=()=>true, delay=600, retryDelay=5000, upgrade=data=>data}) {
   let doc = structuredClone(initial);
   let status = {kind:'local', message:'Guardado en este dispositivo. Inicia sesión para guardar en la nube.'};
   let running = null, timer = null, epoch = 0, stopped = false, failures = 0;
@@ -28,9 +28,13 @@ export function createAutoSync({initial, store, cloud, validate, onData=()=>{}, 
     emit(cloud.scope()?'pending':'local',cloud.scope()?'Cambios guardados en este dispositivo. Enviando a Supabase…':'Guardado en este dispositivo. Inicia sesión para guardar en la nube.');
     if(cloud.scope()) schedule();
   }
+  function upgradeCurrent() {
+    const data=upgrade(structuredClone(doc.data));
+    if(!sameData(data,doc.data)) { validate(data);write({...doc,data,dirty:true},true); }
+  }
   async function perform() {
     const scope=cloud.scope(), generation=epoch;
-    if(!scope) {emit('local','Guardado en este dispositivo. Inicia sesión para guardar en la nube.');return;}
+    if(!scope) {try{upgradeCurrent();}catch(error){emit('error',error.message);return;}emit('local','Guardado en este dispositivo. Inicia sesión para guardar en la nube.');return;}
     if(doc.owner && doc.owner!==scope) {emit('conflict','Esta copia pertenece a otra cuenta. Descarga un respaldo y carga la copia de la cuenta actual.');return;}
     if(!online()) {emit('offline','Sin conexión. Los cambios están en este dispositivo y se enviarán al volver a conectarte.');return;}
     emit('checking','Comprobando tu copia en Supabase…');
@@ -58,6 +62,7 @@ export function createAutoSync({initial, store, cloud, validate, onData=()=>{}, 
       } else {
         emit('conflict','Otro dispositivo guardó cambios. Tus cambios locales están protegidos: revisa las copias antes de continuar.');return;
       }
+      upgradeCurrent();
       while(doc.dirty) {
         const sending=snapshot();
         emit('saving','Guardando automáticamente en Supabase…');
@@ -99,7 +104,8 @@ export function createAutoSync({initial, store, cloud, validate, onData=()=>{}, 
     if(remote.data===null) throw Error('La cuenta todavía no tiene una copia para cargar.');
     validate(remote.data);epoch++;clearTimeout(timer);timer=null;
     write({data:remote.data,owner:remote.owner,version:remote.version,dirty:false},true);
-    emit('saved','Copia de Supabase cargada. Todos los cambios están guardados.');
+    upgradeCurrent();if(doc.dirty)schedule();
+    emit(doc.dirty?'pending':'saved',doc.dirty?'Copia recuperada. Guardando la actualización del control simple…':'Copia de Supabase cargada. Todos los cambios están guardados.');
   }
   function connectionChanged() {
     epoch++;clearTimeout(timer);timer=null;

@@ -61,9 +61,10 @@ export function obligation(group, period, person, now = Date.now()) {
   const principal = records.reduce((s,p) => s + p.principal, 0);
   const finePaid = records.reduce((s,p) => s + p.fine, 0);
   const onTime = records.filter(p => Date.parse(p.at) <= deadline(period)).reduce((s,p) => s + p.principal, 0);
-  const late = now > deadline(period) && onTime < group.amount;
+  const assessment = group.fineAssessments?.find(f => f.period === period.id && f.person === person.id && !f.voided);
+  const late = group.fineMode === 'manual' ? Boolean(assessment) : now > deadline(period) && onTime < group.amount;
   const waiver = group.waivers.find(w => w.period === period.id && w.person === person.id);
-  const fine = late && !waiver ? group.fine : 0;
+  const fine = late && !waiver ? (group.fineMode === 'manual' ? assessment.amount : group.fine) : 0;
   return {principal, finePaid, fine, late, waiver, owed:Math.max(0,group.amount-principal), fineOwed:Math.max(0,fine-finePaid)};
 }
 export function periodTotals(group, period, now = Date.now()) {
@@ -93,10 +94,10 @@ export function validatePayment(group, period, person, payment, now = Date.now()
   if (payment.principal > o.owed) throw Error('El aporte supera el saldo pendiente de esta cuota.');
   const onTimeBefore = group.payments.filter(p => !p.voided && p.period===period.id && p.person===person.id && Date.parse(p.at)<=deadline(period)).reduce((s,p)=>s+p.principal,0);
   const onTimeAfter = onTimeBefore + (date <= deadline(period) ? payment.principal : 0);
-  const dueFineAfter = now > deadline(period) && onTimeAfter < group.amount && !o.waiver ? group.fine : 0;
+  const dueFineAfter = group.fineMode === 'manual' ? o.fine : now > deadline(period) && onTimeAfter < group.amount && !o.waiver ? group.fine : 0;
   if (payment.fine + o.finePaid > dueFineAfter) throw Error('La multa supera el saldo, o la fecha indicada elimina una multa ya cobrada. Revisa los registros.');
-  if (!['QR','Efectivo','Transferencia'].includes(payment.method)) throw Error('Selecciona el medio de pago.');
-  if (payment.method !== 'Efectivo' && !payment.reference.trim()) throw Error('Ingresa la referencia del depósito verificado.');
+  if (!['QR','Efectivo','Transferencia','Sin especificar'].includes(payment.method)) throw Error('Selecciona el medio de pago.');
+  if (['QR','Transferencia'].includes(payment.method) && !payment.reference.trim()) throw Error('Ingresa la referencia del depósito verificado.');
   if (!payment.verified) throw Error('Confirma que verificaste la recepción del dinero.');
 }
 export function validatePayout(group, period) {
@@ -104,4 +105,41 @@ export function validatePayout(group, period) {
   if (period.payout) throw Error('Este turno ya tiene un desembolso registrado.');
   if (periodTotals(group,period).owed) throw Error('Faltan aportes para completar este fondo.');
   return group.amount * group.people.length;
+}
+
+// Preserve accrued legacy fines once, then stop creating fines from the clock.
+export function enableManualFines(group, now = Date.now(), makeId = () => crypto.randomUUID()) {
+  if (group.fineMode === 'manual') return false;
+  const assessments = [];
+  for (const period of group.periods) for (const person of group.people) {
+    const old = obligation(group, period, person, now);
+    if (old.fine) assessments.push({id:makeId(),period:period.id,person:person.id,amount:old.fine,at:new Date(now).toISOString(),source:'legacy'});
+  }
+  group.fineMode = 'manual'; group.fineAssessments = assessments;
+  group.audit.push({id:makeId(),at:new Date(now).toISOString(),text:'Control simple activado. Se conservan las multas anteriores; desde ahora las nuevas multas las marca el administrador.'});
+  return true;
+}
+export function assessFine(group, period, person, now = Date.now(), makeId = () => crypto.randomUUID()) {
+  if (group.fineMode !== 'manual') throw Error('Activa primero el control simple.');
+  const o = obligation(group,period,person,now);
+  if (!group.fine) throw Error('Este grupo tiene la multa en cero.');
+  if (o.fine || o.waiver) throw Error('Esta persona ya tiene una multa registrada en este turno.');
+  const record={id:makeId(),period:period.id,person:person.id,amount:group.fine,at:new Date(now).toISOString()};
+  group.fineAssessments.push(record);return record;
+}
+export function quickPayment(group, period, person, kind, now = Date.now(), makeId = () => crypto.randomUUID()) {
+  const o = obligation(group,period,person,now);
+  if (!['principal','fine'].includes(kind)) throw Error('Acción de pago inválida.');
+  const amount = kind === 'fine' ? o.fineOwed : o.owed;
+  if (!amount) throw Error('Este pago ya está registrado.');
+  const record={id:makeId(),period:period.id,person:person.id,principal:kind==='principal'?amount:0,fine:kind==='fine'?amount:0,at:new Date(now).toISOString(),recordedAt:new Date(now).toISOString(),method:'Sin especificar',reference:'',note:'Registro rápido del administrador',verified:true,quick:true};
+  validatePayment(group,period,person,record,now);group.payments.push(record);return record;
+}
+export function undoPayment(group, record, now = Date.now()) {
+  if (!record || record.voided) throw Error('El pago ya fue deshecho.');
+  const period=group.periods.find(p=>p.id===record.period);
+  if (period.payout && record.principal) throw Error('El fondo ya fue entregado. No puedes deshacer este aporte.');
+  const totals=groupTotals(group,now);
+  if (record.fine && totals.finePaid-record.fine < totals.fineUsed) throw Error('Ese dinero de multas ya fue utilizado.');
+  record.voided={at:new Date(now).toISOString(),reason:'Corrección del administrador'};
 }

@@ -2,26 +2,30 @@
 
 Aplicación estática de administración de pasanaku en Bolivia. Interfaz en español, montos en BOB, fechas en America/La_Paz. No requiere instalar dependencias.
 
-## Empezar
+## Uso diario
 
-`npm run dev` y abrir http://127.0.0.1:5173. `npm test` ejecuta las pruebas de reglas y saldos. No abras index.html como archivo: usa el servidor para cargar los módulos.
+1. Crear un grupo: nombres, aporte, multa acordada, frecuencia y primera fecha. No se precargan participantes ni se pide una hora límite.
+2. En **Turnos**, sortear con la ruleta o ingresar una lista ya acordada. Cada persona recibe una vez y todos siguen aportando hasta el final. Los turnos asignados no se reemplazan.
+3. En **Pagos**, elegir el turno y pulsar **Registrar pago** junto al nombre. Registra el aporte completo pendiente sin formulario. Para abonos antiguos, completa únicamente su saldo. El registro no mueve dinero: pulsarlo solo cuando el administrador ya recibió el pago.
+4. Si hubo retraso, pulsar **Aplicar multa**. Solo el administrador la marca; no se aplica automáticamente por fecha u hora. Pulsar **Cobrar multa** cuando se reciba su importe. Aportes y multas se contabilizan por separado.
+5. **Deshacer pago / Deshacer cobro / Quitar multa** corrigen errores y conservan su historial. No se puede deshacer un aporte que ya respaldó una entrega ni una multa cuyo dinero ya se utilizó.
+6. Al completar todos los aportes, **Marcar fondo entregado** pide una confirmación breve, sin formulario. La fecha y hora de registro se guardan automáticamente. No se permite registrar la entrega antes de la fecha del turno.
 
-1. Crear el grupo: administrador, participantes, aporte, primera fecha, frecuencia, límite horario, multa y acuerdos. No se precargan nombres.
-2. Si el grupo ya acordó el orden, elegir «Ya tengo el orden acordado» al crearlo y escribir los nombres en ese orden (se admite numeración 1., 2., etc.). El primero recibe en la primera fecha y los demás en las siguientes. Para un grupo existente sin turnos ni resultados pendientes, ir a Sorteo y turnos > Ya tengo el orden, pegar la lista completa, revisar las fechas y confirmar. No se reemplazan turnos asignados ni sorteos pendientes. El historial y el PDF distinguen el orden acordado del sorteo. También se puede sortear cada turno con la ruleta y aceptar cada resultado. El generador criptográfico elige uniformemente entre quienes quedan. No existe ninguna regla por nombre. El resultado pendiente se conserva al recargar; las fechas se asignan en orden. Los grupos y sus reglas quedan fijos para evitar cambios durante el ciclo.
-3. Registrar los aportes por turno: efectivo, QR o transferencia, fecha real, referencia y nota. Se permiten abonos parciales. Verificar la recepción fuera de la aplicación antes de registrar. No hay procesamiento de pagos ni integración bancaria.
-4. Registrar el desembolso cuando todos hayan completado sus aportes. El beneficiario también tiene su cuota. El desembolso exige referencia o constancia y confirmación de recepción. No mueve dinero.
-5. Revisar multas y reportes. Preparar PDF abre un informe; usar Imprimir / Guardar como PDF. Incluye cuotas, multas, acuerdos, movimientos, entregas y auditoría.
+La navegación principal tiene cuatro apartados: Inicio, Pagos, Turnos y Grupo. Ajustes y respaldo reúne la conexión, los respaldos y los accesos secundarios al resumen/PDF y al fondo de multas. Los detalles de movimientos quedan plegados por defecto.
 
-## Acuerdos y cálculos
+## Compatibilidad y cálculos
 
-- Número de turnos = número de participantes. Cada persona recibe una vez y aporta en todos los turnos.
-- Semanal = cada 7 días; mensual = mismo día del mes de inicio, ajustado al último día si no existe; personalizado = intervalo entero de días.
-- Dinero calculado en centavos enteros. Las multas nunca se contabilizan como aporte del turno.
-- Se aplica una multa fija por cada cuota incompleta después de la fecha/hora límite. No es una multa diaria. Importe cero desactiva multas. Un pago exactamente a la hora límite es puntual.
-- La fecha real de los pagos determina la puntualidad. Registrar después un pago que ocurrió antes del límite no genera una multa. Si corregir una fecha dejaría multas cobradas sin justificar, la aplicación pide revisar primero esos movimientos.
-- Las multas pendientes se calculan al consultar la aplicación; no hay tareas automáticas en segundo plano. No se envían recordatorios ni mensajes.
-- Se permiten condonaciones con motivo únicamente para multas aún no cobradas. Se registra el uso del fondo de multas con motivo y acuerdo del grupo.
-- Los pagos erróneos se anulan con motivo y siguen visibles. No se puede anular un aporte que respalda un desembolso ni una multa cuyo dinero ya se utilizó. La corrección de desembolsos y usos del fondo requiere revisión administrativa; esta versión no permite editarlos.
+- El dinero se calcula en centavos enteros. Las multas no completan el fondo de aportes.
+- Semanal = cada 7 días; mensual = mismo día del mes, ajustado al último día si no existe; personalizado = intervalo entero de días.
+- Los nuevos grupos usan multas manuales (`fineMode: manual`, `fineAssessments`). Una multa fija por persona y turno. Multa cero desactiva el botón.
+- Los grupos anteriores se actualizan una sola vez: se conservan pagos, abonos, entregas, condonaciones e historial. Las multas ya acumuladas se convierten en registros explícitos; los turnos futuros dejan de generar multas automáticas. Se registra el cambio en el historial.
+- La actualización de formato ocurre después de reconciliar la versión remota. Un conflicto no se resuelve sobrescribiendo registros. Los respaldos antiguos de esquema 2 siguen siendo compatibles.
+- Los registros rápidos dejan el medio como «Sin especificar»; no inventan referencias bancarias ni afirman haber comprobado un depósito automáticamente. La fecha interna es la del registro.
+- Los reportes incluyen los saldos y distinguen un orden acordado de uno sorteado. Preparar PDF abre el informe para imprimir o guardar como PDF.
+
+## Desarrollo
+
+`npm run dev` sirve la aplicación en http://127.0.0.1:5173. `npm test` ejecuta las pruebas de reglas, migración y sincronización. `npm run build` prepara `dist`. No requiere instalar dependencias. No abrir index.html como archivo.
 
 ## Guardado y respaldo
 
@@ -49,7 +53,7 @@ Las políticas RLS solo permiten leer los datos de la cuenta autenticada. Las es
 
 ## Verificación
 
-`npm test` comprueba reglas del pasanaku y sincronización: abonos, multas, fechas, selección sin preferencias, reconexión, recarga con pendientes, ediciones durante envíos, conflictos, aislamiento de cuentas y respuestas perdidas. `npm run build` prepara la carpeta pública sin dependencias externas.
+`npm test` comprueba pagos rápidos, multas manuales, correcciones, migración de registros antiguos, integridad de saldos, turnos y sincronización, incluidos conflictos y respuestas perdidas. `npm run build` prepara la carpeta pública sin dependencias externas.
 
 ## Publicar
 
